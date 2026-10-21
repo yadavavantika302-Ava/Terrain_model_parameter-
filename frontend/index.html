@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terrain Lens</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6fb;--card:#fff;--ink:#13233f;--mute:#647895;--line:#dbe4f0;--accent:#3268ef;--ok:#2f7d4f;--warn:#a87400;--bad:#b3362b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Instrument Sans",system-ui,sans-serif}
+header{padding:28px 32px 8px}.eyebrow{margin:0 0 4px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:13px}h1{font:600 34px "Fraunces",Georgia,serif;margin:0}header p{color:var(--mute);margin:4px 0 0;max-width:100ch}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;padding:20px 32px 40px;max-width:1420px;margin:auto}
+.col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.col>.card{margin:0}.col:first-child>.setup-card,.col:first-child>.card:nth-child(4){grid-column:1/-1}
+header{max-width:1420px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:16px}.col{grid-template-columns:1fr}header{padding:20px 16px 0}.col:first-child>.setup-card,.col:first-child>.card:nth-child(4){grid-column:auto}.settings,.upload-grid{grid-template-columns:1fr}}
+.col>.card{margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+h2{font:600 17px "Fraunces",Georgia,serif;margin:0 0 12px}
+#drop{border:2px dashed var(--line);border-radius:10px;padding:44px 16px;text-align:center;color:var(--mute);cursor:pointer}
+#drop:hover,#drop:focus-visible{border-color:var(--accent);outline:none}
+#stage{position:relative;display:none}#stage img{width:100%;display:block;border-radius:8px}
+#heat{position:absolute;inset:0;width:100%;height:100%;border-radius:8px;opacity:.7}
+.row{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}.row label{color:var(--mute);font-size:13px}
+select,button{font:inherit;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button{cursor:pointer}button:hover{border-color:var(--accent)}
+.big{font:600 34px "Fraunces",Georgia,serif;text-transform:capitalize}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid currentColor}
+.Confident{color:var(--ok)}.Low{color:var(--warn)}.Needs{color:var(--bad)}
+.bar{display:grid;grid-template-columns:150px 1fr 56px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.pbar{grid-template-columns:90px 1fr 48px}
+.track{height:10px;background:var(--line);border-radius:5px;overflow:hidden}.fill{height:100%;background:var(--accent)}
+.warnbox{background:color-mix(in srgb,var(--warn) 15%,transparent);border:1px solid var(--warn);padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.hint{color:var(--mute);font-size:13px}
+.why li{margin:4px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:6px;font-size:12px;line-height:1.3}
+.tile img{width:100%;border-radius:5px;display:block;margin-bottom:4px}
+.tile.flip{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.tile b{display:block;font-weight:600}.tag{font-size:11px;color:var(--accent);font-weight:600}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}
+details{margin:6px 0}summary{cursor:pointer;font-weight:600}
+.field{display:grid;gap:5px;margin:10px 0}.field input,.field textarea,.field select{font:inherit;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+.settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.upload-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.setup-card{padding:24px}.filebox{border:1px solid var(--line);border-radius:8px;padding:12px}
+.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;padding:9px 16px}
+.error{color:var(--bad)}.success{color:var(--ok)}.Uncertain{color:var(--warn)}.StatusNeutral{color:var(--mute)}
+</style></head><body>
+<header><p class="eyebrow">Image model testing workspace</p><h1>Test a terrain image classifier</h1><p>Run one JPG, JPEG, or PNG image through your selected image model. Review measurements, prediction behavior, region sensitivity, and optional single-image validation.</p></header>
+<main>
+ <div class="col">
+  <section class="card setup-card"><h2>Model and image setup</h2>
+   <div class="upload-grid">
+    <div class="filebox"><div class="field"><label for="modelFile"><b>Image classification model</b></label><input id="modelFile" type="file" accept=".tflite,.keras,.h5,.onnx"></div><span class="hint">TFLite, Keras, H5, or ONNX; maximum 20 MB.</span><div class="field"><label for="model">Selected model</label><select id="model"></select></div></div>
+    <div class="filebox"><div class="field"><label for="file"><b>Test image</b></label><input id="file" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></div><span class="hint">JPG, JPEG, or PNG; maximum 8 MB and 20 megapixels.</span></div>
+   </div>
+   <div class="field"><label for="labels">Class labels in model output order (optional)</label><textarea id="labels" rows="3" placeholder="Enter one label per line"></textarea><span class="hint">Enter labels in exact output order. If unknown, the app uses generic class labels.</span></div>
+   <div id="modelInfo" class="hint">Loading model information...</div><div id="modelMessage" class="hint"></div>
+   <div class="settings">
+    <label class="field">Image resize method<select id="resize"><option value="stretch">Resize whole image (stretch)</option><option value="center_crop">Center crop then resize</option><option value="letterbox">Fit and pad (letterbox)</option></select><span class="hint">Bilinear interpolation is used.</span></label>
+    <label class="field">Color channel order<select id="channels"><option>RGB</option><option>BGR</option></select><span class="hint">Must match the model training pipeline.</span></label>
+    <label class="field">Pixel range at model input<select id="scaling"><option value="raw">Raw pixels (0-255)</option><option value="zero_one">Scale to 0-1</option><option value="minus_one_one">Scale to -1 to 1</option></select><span class="hint">Use the preprocessing documented for this model.</span></label>
+    <label class="field">Output interpretation<select id="interpretation"><option value="auto">Detect probabilities</option><option value="probabilities">Class probabilities</option><option value="logits">Logits (apply softmax)</option><option value="scores">Raw scores</option></select><span class="hint">Probability-shaped vectors are not softmaxed again.</span></label>
+    <label class="field">Uncertainty margin threshold<input id="marginThreshold" type="number" min="0" max="1" step="0.01" value="0.20"><span class="hint">Flag a probability output when the top two classes are closer than this. Heuristic, not calibrated.</span></label>
+    <label class="field">Minimum top-score threshold<input id="minScoreThreshold" type="number" min="0" max="1" step="0.01" value="0.50"><span class="hint">Also flag probability outputs below this top score. Heuristic, not calibrated.</span></label>
+   </div>
+   <div class="upload-grid">
+    <div class="field"><label for="knownLabel">Known correct label (optional)</label><input id="knownLabel" type="text" placeholder="Must match one configured class label"><span class="hint">Checks this prediction only; it does not measure model accuracy.</span></div>
+    <div class="field" style="align-content:end"><button id="testImage" class="primary" type="button">Test Image</button><span class="hint">Runs inference and the selected model's perturbation analysis.</span><span id="testStatus" class="hint" role="status" aria-live="polite"></span></div>
+   </div>
+  </section>
+  <section class="card">
+   <h2>Image preview and region importance</h2>
+   <div id="drop" tabindex="0" role="button">Or drop the test image here</div>
+   <div id="stage"><img id="img" alt="Uploaded test image"><img id="heat" alt="Region importance map"></div>
+   <div class="row" id="controls" style="display:none">
+    <label>Explain class <select id="cls"></select></label>
+    <label>Map <input id="op" type="range" min="0" max="100" value="70"></label>
+    <button id="toggle">Hide map</button><button id="again">New image</button>
+   </div>
+   <p class="hint">Red regions indicate areas whose occlusion lowered the selected score. This is perturbation-based evidence, not a guaranteed explanation of internal reasoning.</p><div id="hot"></div>
+  </section>
+  <section class="card"><h2>Property tests</h2>
+   <p class="hint">Each tile changes ONE property of your image and re-runs the model. Red border = the predicted class changed. "Keep only" tiles destroy everything except that property. Tests overlap (blur hits both edges and texture), so read them together.</p>
+   <div id="tests" class="grid"><span class="hint">No image yet.</span></div>
+  </section>
+ </div>
+ <div class="col">
+  <section class="card">
+   <div id="warn"></div>
+   <h2>Prediction</h2>
+   <div id="result" class="hint">No image yet.</div>
+   <div id="probs"></div>
+  </section>
+  <section class="card"><h2>What drives this prediction</h2>
+   <ul class="why" id="why"><li class="hint">No image yet.</li></ul>
+   <div id="groups"></div>
+   <p class="hint">Bar = average drop in the predicted class's probability when that property is broken. Output resolution of this model is 1/256, so drops under ~1 pt are noise.</p>
+  </section>
+  <section class="card"><h2>Measured properties</h2>
+   <p class="hint">Measurements describe the model-sized image after the selected resize method. These describe the image; the tests above show how the model responds to changes.</p>
+   <div id="meas"></div>
+  </section>
+  <section class="card"><h2>Recent predictions</h2>
+   <table><thead><tr><th>Time</th><th>File</th><th>Class</th><th>Top score</th><th>Status</th></tr></thead><tbody id="hist"></tbody></table>
+  </section>
+ </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);let current=null,info={hints:{},group_names:{}};
+  const pct=v=>(v*100).toFixed(1)+"%",pts=v=>(v>=0?"-":"+")+Math.abs(v*100).toFixed(0)+" pts",scoreText=(v,type)=>type==="probability"?pct(v):Number(v).toFixed(4);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=v=>Number.isInteger(v)?v:Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(3);
+const pretty=k=>k.replace(/_/g," ");
+fetch("/api/info").then(r=>r.json()).then(i=>{info=i;
+  $("cls").innerHTML='<option value="">Predicted class</option>'+i.classes.map(c=>`<option>${esc(c)}</option>`).join("")});
+async function run(){
+  const image=$("file").files[0]||current;
+  if(!$("model").value)throw new Error("Select or upload a supported model first.");
+  if(!image)throw new Error("Choose a JPG, JPEG, or PNG image first.");
+  if(!/\.(jpe?g|png)$/i.test(image.name)||!(["image/jpeg","image/png"].includes(image.type)||!image.type))throw new Error("Choose a JPG, JPEG, or PNG image.");
+  if(image.size>8*1024*1024)throw new Error("Image is larger than 8 MB.");
+  const marginThreshold=Number($("marginThreshold").value),minScoreThreshold=Number($("minScoreThreshold").value);
+  if(!Number.isFinite(marginThreshold)||marginThreshold<0||marginThreshold>1)throw new Error("Uncertainty margin threshold must be between 0 and 1.");
+  if(!Number.isFinite(minScoreThreshold)||minScoreThreshold<0||minScoreThreshold>1)throw new Error("Minimum top-score threshold must be between 0 and 1.");
+  const fd=new FormData();fd.append("file",image);fd.append("model_id",$("model").value);fd.append("labels",$("labels").value);fd.append("channel_order",$("channels").value);fd.append("resize",$("resize").value);fd.append("scaling",$("scaling").value);fd.append("interpretation",$("interpretation").value);fd.append("margin_threshold",String(marginThreshold));fd.append("min_score_threshold",String(minScoreThreshold));fd.append("known_correct_label",$("knownLabel").value);if($("cls").value)fd.append("explain_class",$("cls").value);
+  $("result").textContent="Testing image...";
+  let r;try{r=await fetch("/api/predict",{method:"POST",body:fd})}catch(e){throw new Error("Could not reach the prediction service. Check that the backend is running.");}
+  let d;try{d=await r.json()}catch(e){throw new Error(`Prediction service returned an invalid response (HTTP ${r.status}).`)}
+  if(!r.ok)throw new Error(d.detail||`Prediction failed (HTTP ${r.status}).`);
+  $("heat").src=d.heatmap;
+  const resultHint=$("result").querySelector(".hint");if(resultHint)resultHint.textContent=(d.confidence===null?"Raw score (not a calibrated probability). ":"Model output score "+pct(d.highest_score)+"; calibration is not established. ")+"Top two: "+d.top_scores.map(s=>s.label+" "+(d.score_type==="probability"?pct(s.score):Number(s.score).toFixed(4))).join(" vs ")+". Difference "+(d.score_type==="probability"?pct(d.margin):Number(d.margin).toFixed(4))+". Runtime "+d.inference_ms+" ms. Map shows: "+d.explained+".";
+  $("warn").innerHTML=(d.preprocessing_warning?'<p class="warnbox">'+esc(d.preprocessing_warning)+'</p>':'')+'<p class="hint">Prediction and explanation runtime: '+d.inference_ms+' ms</p>'+(d.validation?'<p class="'+(d.validation.correct?'success':'error')+'">Known label: '+esc(d.validation.known_label)+' · This prediction is '+(d.validation.correct?'correct':'incorrect')+'.</p>':'');
+  $("result").innerHTML=`<div class="big">${esc(d.label)}</div><span class="pill ${d.status.startsWith("Uncertain")?"Uncertain":"StatusNeutral"}">${esc(d.status)}</span>
+   <p class="hint">Top score ${d.score_type==="probability"?pct(d.highest_score):Number(d.highest_score).toFixed(4)}; second: ${esc(d.top_scores[1]?.label||"none")} ${d.top_scores[1]?(d.score_type==="probability"?pct(d.top_scores[1].score):Number(d.top_scores[1].score).toFixed(4)):""}. Difference ${d.score_type==="probability"?pct(d.margin):Number(d.margin).toFixed(4)}. ${d.score_type==="probability"?"Probability outputs are not calibrated; thresholds are user-set heuristics.":"Raw scores have no probability interpretation."} Map shows: <b>${esc(d.explained)}</b>.</p>
+   <p class="hint">Input ${esc(JSON.stringify(d.model.input_shape))} · ${esc(d.model.input_dtype)}; ${esc($("resize").selectedOptions[0].text)}, bilinear; ${esc($("channels").value)}; ${esc($("scaling").selectedOptions[0].text)} · ${Number(d.inference_ms).toFixed(1)} ms</p>`;
+  $("probs").innerHTML=Object.entries(d.probs).map(([k,v])=>{const w=d.score_type==="probability"?Math.max(0,Math.min(100,v*100)):0;return `<div class="bar pbar"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${w}%"></div></div><span>${d.score_type==="probability"?pct(v):Number(v).toFixed(4)}</span></div>`}).join("");
+  $("why").innerHTML=d.summary.map(s=>`<li>${esc(s)}</li>`).join("");
+  const gs=[...d.groups].sort((a,b)=>b.sensitivity-a.sensitivity);
+  $("groups").innerHTML=gs.map(g=>`<div class="bar"><span>${esc(g.name)}</span><div class="track"><div class="fill" style="width:${Math.min(100,g.sensitivity*100)}%"></div></div><span title="${g.flips} of ${g.n} tests changed the class">${(g.sensitivity*100).toFixed(0)} pts</span></div>`).join("");
+  $("tests").innerHTML=d.tests.map(t=>`<div class="tile ${t.flipped?"flip":""}"><img src="${t.thumb}" alt="">
+    ${t.kind==="keep"?'<span class="tag">KEEP ONLY</span>':""}<b>${esc(t.name)}</b>
+    Prediction: ${esc(t.label)} ${scoreText(t.conf,d.score_type)}<br><span class="hint">${esc(d.label)} score ${scoreText(t.original_score,d.score_type)} → ${scoreText(t.modified_score,d.score_type)} (${pts(t.drop)} change)</span></div>`).join("");
+  const h=d.hot_region;
+  $("hot").innerHTML=!h?'<p class="hint"><b>No dominant region:</b> covering any single patch barely changed the score.</p>':
+   `<p class="hint"><b>Most influential region</b> (top quarter of the map) vs the rest:</p><table>
+   <tr><th></th><th class="n">Region</th><th class="n">Rest</th></tr>
+   <tr><td>Greenness</td><td class="n">${num(h.hot.greenness_exg)}</td><td class="n">${num(h.rest.greenness_exg)}</td></tr>
+   <tr><td>Edge density</td><td class="n">${num(h.hot.edge_density)}</td><td class="n">${num(h.rest.edge_density)}</td></tr>
+   <tr><td>Fine detail</td><td class="n">${num(h.hot.detail)}</td><td class="n">${num(h.rest.detail)}</td></tr>
+   <tr><td>Brightness</td><td class="n">${num(h.hot.brightness)}</td><td class="n">${num(h.rest.brightness)}</td></tr></table>`;
+  $("meas").innerHTML=Object.entries(d.measurements).map(([g,vals])=>`<details ${g==="colour"?"open":""}><summary>${esc(info.group_names[g]||g)}</summary><table>`+
+    Object.entries(vals).map(([k,v])=>k==="dominant_colours"?
+      `<tr><td>dominant colours</td><td class="n">${v.map(c=>`<span class="sw" style="background:${c.hex}"></span>${(c.share*100).toFixed(0)}%`).join(" ")}</td></tr>`:
+      `<tr><td title="${esc(info.hints[k]||"")}">${esc(pretty(k))}</td><td class="n">${num(v)}</td></tr>`).join("")+`</table></details>`).join("");
+  loadHist();
+}
+async function loadHist(){
+  const h=await (await fetch("/api/history")).json();
+  $("hist").innerHTML=h.slice(0,8).map(x=>`<tr><td>${esc(x.t)}</td><td>${esc(x.name)}</td><td>${esc(x.label)}</td><td>${x.score_type==="probability"?pct(x.top_score):Number(x.top_score).toFixed(4)}</td><td>${esc(x.status)}</td></tr>`).join("");
+}
+function load(f){if(!f)return;if(!/\.(jpe?g|png)$/i.test(f.name)||!(["image/jpeg","image/png"].includes(f.type)||!f.type)||f.size>8*1024*1024){current=null;$("testStatus").className="error";$("testStatus").textContent="Choose a JPG, JPEG, or PNG image under 8 MB.";$("result").textContent="Choose a supported image to begin.";return}current=f;$("testStatus").className="hint";$("testStatus").textContent="";$("img").src=URL.createObjectURL(f);$("stage").style.display="block";$("controls").style.display="flex";$("drop").style.display="none";$("cls").value=""}
+$("drop").onclick=()=>$("file").click();$("drop").onkeydown=e=>{if(e.key==="Enter")$("file").click()};
+$("file").onchange=e=>load(e.target.files[0]);
+$("again").onclick=()=>{$("file").value="";$("file").click()};
+$("drop").ondragover=e=>e.preventDefault();$("drop").ondrop=e=>{e.preventDefault();load(e.dataTransfer.files[0])};
+async function testImage(){
+  const button=$("testImage"),status=$("testStatus");
+  if(button.disabled)return;
+  button.disabled=true;status.className="hint";status.textContent="Testing image...";
+  try{await run();status.className="success";status.textContent="Analysis complete. Results are shown below.";document.getElementById("result").scrollIntoView({behavior:"smooth",block:"center"});}
+  catch(e){status.className="error";status.textContent=e.message||"The test failed. Check the selected model and try again.";document.getElementById("result").textContent=status.textContent;}
+  finally{button.disabled=false;}
+}
+$("cls").onchange=()=>current&&testImage();
+$("op").oninput=e=>$("heat").style.opacity=e.target.value/100;
+$("toggle").onclick=()=>{const h=$("heat");h.style.display=h.style.display==="none"?"block":"none";$("toggle").textContent=h.style.display==="none"?"Show map":"Hide map"};
+$("testImage").onclick=testImage;loadHist();
+</script>
+<script>
+fetch("/api/info").then(r=>r.json()).then(i=>{$("model").innerHTML=(i.models||[]).map(m=>'<option value="'+esc(m.id)+'">'+esc(m.id==="terrain-default"?"Terrain example":m.format+" model "+m.id.slice(0,6))+'</option>').join("");syncModel()});
+function syncModel(){fetch("/api/info").then(r=>r.json()).then(i=>{const m=(i.models||[]).find(x=>x.id===$("model").value);if(!m)return;modelId=m.id;info.classes=m.classes||[];Array.from($("scaling").options).forEach(o=>o.disabled=!!m.recommended_scaling&&o.value!==m.recommended_scaling);if(m.recommended_scaling)$("scaling").value=m.recommended_scaling;if(m.recommended_interpretation){$("interpretation").value=m.recommended_interpretation;Array.from($("interpretation").options).forEach(o=>o.disabled=o.value==="logits")}else Array.from($("interpretation").options).forEach(o=>o.disabled=false);$("modelInfo").textContent="Format: "+m.format+" · Input "+JSON.stringify(m.input_shape)+" ("+m.input_dtype+") · Output "+JSON.stringify(m.output_shape)+" ("+m.output_dtype+") · Classes: "+m.class_count+" · Labels: "+m.label_order_source+" (training order unverified) · Scaling from quantization: "+(m.recommended_scaling||"not inferable")+" · Output activation: "+(m.recommended_interpretation||"not inferable")+" · RGB/resizing training config remains unverified · Metadata: "+JSON.stringify(m.metadata);$("cls").innerHTML='<option value="">Predicted class</option>'+info.classes.map(c=>'<option>'+esc(c)+'</option>').join("")})}
+$("model").onchange=syncModel;
+$("modelFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append("file",f);fd.append("labels",$("labels").value);$("modelMessage").textContent="Loading and validating model…";try{const r=await fetch("/api/models",{method:"POST",body:fd}),d=await r.json();if(!r.ok)throw Error(d.detail);$("model").insertAdjacentHTML("beforeend",'<option value="'+esc(d.id)+'">'+esc(d.format)+" model</option>");$("model").value=d.id;syncModel();$("modelMessage").textContent="Model loaded. Confirm preprocessing and labels, then test an image.";$("modelMessage").className="success"}catch(x){$("modelMessage").textContent=x.message;$("modelMessage").className="error"}};
+</script></body></html>

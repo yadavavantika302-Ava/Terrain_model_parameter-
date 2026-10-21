@@ -1,0 +1,9 @@
+﻿fastapi
+uvicorn[standard]
+python-multipart
+numpy
+opencv-python-headless
+scikit-image
+scipy
+ai-edge-litert
+# Optional runtimes: tensorflow (Keras/H5 and TFLite fallback), onnxruntime (ONNX)
