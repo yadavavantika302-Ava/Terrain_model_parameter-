@@ -2,6 +2,7 @@ import os, time, uuid, json, math
 from pathlib import Path
 import numpy as np
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 import analysis as A
@@ -9,6 +10,16 @@ from model import CLASSES, MODEL_PATH, ImageModel, decode_image
 
 MAX_BYTES, MAX_PIXELS, MAX_MODEL_BYTES = 8 * 1024 * 1024, 20_000_000, 20 * 1024 * 1024
 app = FastAPI(title="Terrain Lens")
+frontend_origins = [origin.strip() for origin in os.getenv(
+    "FRONTEND_ORIGINS",
+    "https://terrainmodelparameter-frontend-izngcraf7-myth-b240.vercel.app,http://localhost:8000,http://127.0.0.1:8000",
+).split(",") if origin.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=frontend_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 history = []
 UPLOAD_DIR = Path(__file__).parent / "uploaded_models"
 UPLOAD_DIR.mkdir(exist_ok=True)

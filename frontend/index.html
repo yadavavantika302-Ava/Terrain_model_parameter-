@@ -106,12 +106,14 @@ details{margin:6px 0}summary{cursor:pointer;font-weight:600}
  </div>
 </main>
 <script>
+const API_BASE="https://terrain-model-parameter.onrender.com";
+const apiFetch=(path,options)=>fetch(`${API_BASE}${path}`,options);
 const $=id=>document.getElementById(id);let current=null,info={hints:{},group_names:{}};
   const pct=v=>(v*100).toFixed(1)+"%",pts=v=>(v>=0?"-":"+")+Math.abs(v*100).toFixed(0)+" pts",scoreText=(v,type)=>type==="probability"?pct(v):Number(v).toFixed(4);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=v=>Number.isInteger(v)?v:Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(3);
 const pretty=k=>k.replace(/_/g," ");
-fetch("/api/info").then(r=>r.json()).then(i=>{info=i;
+apiFetch("/api/info").then(r=>r.json()).then(i=>{info=i;
   $("cls").innerHTML='<option value="">Predicted class</option>'+i.classes.map(c=>`<option>${esc(c)}</option>`).join("")});
 async function run(){
   const image=$("file").files[0]||current;
@@ -124,7 +126,7 @@ async function run(){
   if(!Number.isFinite(minScoreThreshold)||minScoreThreshold<0||minScoreThreshold>1)throw new Error("Minimum top-score threshold must be between 0 and 1.");
   const fd=new FormData();fd.append("file",image);fd.append("model_id",$("model").value);fd.append("labels",$("labels").value);fd.append("channel_order",$("channels").value);fd.append("resize",$("resize").value);fd.append("scaling",$("scaling").value);fd.append("interpretation",$("interpretation").value);fd.append("margin_threshold",String(marginThreshold));fd.append("min_score_threshold",String(minScoreThreshold));fd.append("known_correct_label",$("knownLabel").value);if($("cls").value)fd.append("explain_class",$("cls").value);
   $("result").textContent="Testing image...";
-  let r;try{r=await fetch("/api/predict",{method:"POST",body:fd})}catch(e){throw new Error("Could not reach the prediction service. Check that the backend is running.");}
+  let r;try{r=await apiFetch("/api/predict",{method:"POST",body:fd})}catch(e){throw new Error("Could not reach the prediction service. Check that the backend is running.");}
   let d;try{d=await r.json()}catch(e){throw new Error(`Prediction service returned an invalid response (HTTP ${r.status}).`)}
   if(!r.ok)throw new Error(d.detail||`Prediction failed (HTTP ${r.status}).`);
   $("heat").src=d.heatmap;
@@ -155,7 +157,7 @@ async function run(){
   loadHist();
 }
 async function loadHist(){
-  const h=await (await fetch("/api/history")).json();
+  const h=await (await apiFetch("/api/history")).json();
   $("hist").innerHTML=h.slice(0,8).map(x=>`<tr><td>${esc(x.t)}</td><td>${esc(x.name)}</td><td>${esc(x.label)}</td><td>${x.score_type==="probability"?pct(x.top_score):Number(x.top_score).toFixed(4)}</td><td>${esc(x.status)}</td></tr>`).join("");
 }
 function load(f){if(!f)return;if(!/\.(jpe?g|png)$/i.test(f.name)||!(["image/jpeg","image/png"].includes(f.type)||!f.type)||f.size>8*1024*1024){current=null;$("testStatus").className="error";$("testStatus").textContent="Choose a JPG, JPEG, or PNG image under 8 MB.";$("result").textContent="Choose a supported image to begin.";return}current=f;$("testStatus").className="hint";$("testStatus").textContent="";$("img").src=URL.createObjectURL(f);$("stage").style.display="block";$("controls").style.display="flex";$("drop").style.display="none";$("cls").value=""}
@@ -177,8 +179,8 @@ $("toggle").onclick=()=>{const h=$("heat");h.style.display=h.style.display==="no
 $("testImage").onclick=testImage;loadHist();
 </script>
 <script>
-fetch("/api/info").then(r=>r.json()).then(i=>{$("model").innerHTML=(i.models||[]).map(m=>'<option value="'+esc(m.id)+'">'+esc(m.id==="terrain-default"?"Terrain example":m.format+" model "+m.id.slice(0,6))+'</option>').join("");syncModel()});
-function syncModel(){fetch("/api/info").then(r=>r.json()).then(i=>{const m=(i.models||[]).find(x=>x.id===$("model").value);if(!m)return;modelId=m.id;info.classes=m.classes||[];Array.from($("scaling").options).forEach(o=>o.disabled=!!m.recommended_scaling&&o.value!==m.recommended_scaling);if(m.recommended_scaling)$("scaling").value=m.recommended_scaling;if(m.recommended_interpretation){$("interpretation").value=m.recommended_interpretation;Array.from($("interpretation").options).forEach(o=>o.disabled=o.value==="logits")}else Array.from($("interpretation").options).forEach(o=>o.disabled=false);$("modelInfo").textContent="Format: "+m.format+" · Input "+JSON.stringify(m.input_shape)+" ("+m.input_dtype+") · Output "+JSON.stringify(m.output_shape)+" ("+m.output_dtype+") · Classes: "+m.class_count+" · Labels: "+m.label_order_source+" (training order unverified) · Scaling from quantization: "+(m.recommended_scaling||"not inferable")+" · Output activation: "+(m.recommended_interpretation||"not inferable")+" · RGB/resizing training config remains unverified · Metadata: "+JSON.stringify(m.metadata);$("cls").innerHTML='<option value="">Predicted class</option>'+info.classes.map(c=>'<option>'+esc(c)+'</option>').join("")})}
+apiFetch("/api/info").then(r=>r.json()).then(i=>{$("model").innerHTML=(i.models||[]).map(m=>'<option value="'+esc(m.id)+'">'+esc(m.id==="terrain-default"?"Terrain example":m.format+" model "+m.id.slice(0,6))+'</option>').join("");syncModel()});
+function syncModel(){apiFetch("/api/info").then(r=>r.json()).then(i=>{const m=(i.models||[]).find(x=>x.id===$("model").value);if(!m)return;modelId=m.id;info.classes=m.classes||[];Array.from($("scaling").options).forEach(o=>o.disabled=!!m.recommended_scaling&&o.value!==m.recommended_scaling);if(m.recommended_scaling)$("scaling").value=m.recommended_scaling;if(m.recommended_interpretation){$("interpretation").value=m.recommended_interpretation;Array.from($("interpretation").options).forEach(o=>o.disabled=o.value==="logits")}else Array.from($("interpretation").options).forEach(o=>o.disabled=false);$("modelInfo").textContent="Format: "+m.format+" · Input "+JSON.stringify(m.input_shape)+" ("+m.input_dtype+") · Output "+JSON.stringify(m.output_shape)+" ("+m.output_dtype+") · Classes: "+m.class_count+" · Labels: "+m.label_order_source+" (training order unverified) · Scaling from quantization: "+(m.recommended_scaling||"not inferable")+" · Output activation: "+(m.recommended_interpretation||"not inferable")+" · RGB/resizing training config remains unverified · Metadata: "+JSON.stringify(m.metadata);$("cls").innerHTML='<option value="">Predicted class</option>'+info.classes.map(c=>'<option>'+esc(c)+'</option>').join("")})}
 $("model").onchange=syncModel;
-$("modelFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append("file",f);fd.append("labels",$("labels").value);$("modelMessage").textContent="Loading and validating model…";try{const r=await fetch("/api/models",{method:"POST",body:fd}),d=await r.json();if(!r.ok)throw Error(d.detail);$("model").insertAdjacentHTML("beforeend",'<option value="'+esc(d.id)+'">'+esc(d.format)+" model</option>");$("model").value=d.id;syncModel();$("modelMessage").textContent="Model loaded. Confirm preprocessing and labels, then test an image.";$("modelMessage").className="success"}catch(x){$("modelMessage").textContent=x.message;$("modelMessage").className="error"}};
+$("modelFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append("file",f);fd.append("labels",$("labels").value);$("modelMessage").textContent="Loading and validating model…";try{const r=await apiFetch("/api/models",{method:"POST",body:fd}),d=await r.json();if(!r.ok)throw Error(d.detail);$("model").insertAdjacentHTML("beforeend",'<option value="'+esc(d.id)+'">'+esc(d.format)+" model</option>");$("model").value=d.id;syncModel();$("modelMessage").textContent="Model loaded. Confirm preprocessing and labels, then test an image.";$("modelMessage").className="success"}catch(x){$("modelMessage").textContent=x.message;$("modelMessage").className="error"}};
 </script></body></html>
