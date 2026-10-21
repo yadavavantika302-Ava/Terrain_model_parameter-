@@ -12,11 +12,12 @@ MAX_BYTES, MAX_PIXELS, MAX_MODEL_BYTES = 8 * 1024 * 1024, 20_000_000, 20 * 1024 
 app = FastAPI(title="Terrain Lens")
 frontend_origins = [origin.strip() for origin in os.getenv(
     "FRONTEND_ORIGINS",
-    "https://terrainmodelparameter-frontend-izngcraf7-myth-b240.vercel.app,http://localhost:8000,http://127.0.0.1:8000",
+    "https://terrainmodelparameter-frontend.vercel.app,https://terrainmodelparameter-frontend-izngcraf7-myth-b240.vercel.app,http://localhost:8000,http://127.0.0.1:8000",
 ).split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
+    allow_origin_regex=r"https://terrainmodelparameter-frontend(?:-[a-z0-9]+-myth-b240)?\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
